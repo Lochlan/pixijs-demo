@@ -60,9 +60,9 @@
                 if (this.callbackMove) {
                     this.callbackMove({
                         direction: this.getDirection(),
-                        directionCurrent: this.getDirection(this.getAngle(this.prevX, this.prevY)),
+                        directionLast: this.getDirection(this.getAngle(this.prevX, this.prevY)),
                         length: this.getLength(),
-                        lengthCurrent: this.getLength(this.prevX, this.prevY),
+                        lengthLast: this.getLength(this.prevX, this.prevY),
                     }, this.el);
                 }
             } else {

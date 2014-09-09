@@ -272,11 +272,11 @@
 
             if (isMobile) {
                 simpleSwipe = new SimpleSwipe("body", function (swipe, el) {
-                    console.log(swipe.directionCurrent, swipe.lengthCurrent, cardRotationOffset);
-                    if (swipe.directionCurrent === 'left') {
-                        cardRotationOffset -= 0.5 * (swipe.lengthCurrent >=5 ? 5 : swipe.lengthCurrent);
-                    } else if (swipe.directionCurrent === 'right') {
-                        cardRotationOffset += 0.5 * (swipe.lengthCurrent >=5 ? 5 : swipe.lengthCurrent);
+                    console.log(swipe.directionLast, swipe.lengthLast, cardRotationOffset);
+                    if (swipe.directionLast === 'left') {
+                        cardRotationOffset -= 0.5 * (swipe.lengthLast >=5 ? 5 : swipe.lengthLast);
+                    } else if (swipe.directionLast === 'right') {
+                        cardRotationOffset += 0.5 * (swipe.lengthLast >=5 ? 5 : swipe.lengthLast);
                     }
 
                     deck.forEach(function (card) {
