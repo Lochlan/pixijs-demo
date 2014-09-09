@@ -274,9 +274,9 @@
                 simpleSwipe = new SimpleSwipe("body", function (swipe, el) {
                     console.log(swipe.directionCurrent, swipe.lengthCurrent, cardRotationOffset);
                     if (swipe.directionCurrent === 'left') {
-                        cardRotationOffset -= 0.5 * (swipe.lengthCurrent >=3 ? 3 : swipe.lengthCurrent);
+                        cardRotationOffset -= 0.5 * (swipe.lengthCurrent >=5 ? 5 : swipe.lengthCurrent);
                     } else if (swipe.directionCurrent === 'right') {
-                        cardRotationOffset += 0.5 * (swipe.lengthCurrent >=3 ? 3 : swipe.lengthCurrent);
+                        cardRotationOffset += 0.5 * (swipe.lengthCurrent >=5 ? 5 : swipe.lengthCurrent);
                     }
 
                     deck.forEach(function (card) {
