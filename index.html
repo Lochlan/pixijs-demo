@@ -25,10 +25,38 @@
         function getFanPosition(a_deg, r, cx, cy) {
             var a = (a_deg) * Math.PI / 180;
             return {
-                a: a + Math.PI / 2, // Add 90° so card will point out
+                a: (a + Math.PI / 2) % (2 * Math.PI), // Add 90° so card will point out, use remainder operator to reduce card spinning
                 x: cx + r * Math.cos(a),
                 y: cy + r * Math.sin(a),
             };
+        }
+        function gsrShuffle(deck) {
+            var deckLength = deck.length;
+            var deckFirstHalfLength = 0;
+            var pile1;
+            var pile2;
+            var pile1ChoosingProbability;
+            var i;
+            var rand;
+
+            // Cut deck into two piles
+            for (i = 0; i <= DECK_LENGTH; i++) {
+                if (Math.random() <= 0.5) {
+                    deckFirstHalfLength++;
+                }
+            }
+            pile1 = deck.slice(0, deckFirstHalfLength);
+            pile2 = deck.slice(deckFirstHalfLength);
+            deck = [];
+
+            // "riffle shuffle"
+            for (i = 0; i <= DECK_LENGTH; i++) {
+                pile1ChoosingProbability = pile1.length / (pile1.length + pile2.length);
+                deck.push(Math.random() <= pile1ChoosingProbability ? pile1.pop() : pile2.pop());
+                deck[i].ordering = i;
+            }
+
+            return deck;
         }
 
         var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|OperaAndroid|Opera Mini/i.test(navigator.userAgent);
@@ -148,7 +176,7 @@
 
         var CANVAS_WIDTH = isMobile ? window.innerWidth : 800;
         var CANVAS_HEIGHT = isMobile ? window.innerHeight : 800;
-
+        var DECK_LENGTH = 77; // zero indexed
         var CARD_FAN_X = CANVAS_WIDTH / 2;
         var CARD_FAN_Y = isMobile ? CANVAS_HEIGHT : CANVAS_HEIGHT / 2;
         var CARD_FAN_R = 300;
@@ -167,24 +195,20 @@
         var simpleSwipe;
 
         var textures = { ghost: PIXI.Texture.fromImage('decks/universal_waite/ghost.jpg') };
-        for (i = 0; i <= 77; i++) {
+        for (i = 0; i <= DECK_LENGTH; i++) {
             textures[i] = PIXI.Texture.fromImage('decks/universal_waite/' + i + '.jpg');
         }
 
         // set up cards
-        for (i = 0; i <= 77; i++) {
+        for (i = 0; i <= DECK_LENGTH; i++) {
             // Cards begin life face down in the middle of the canvas
             card = new PIXI.Sprite(textures.ghost);
             card.anchor.x = 0.5;
             card.anchor.y = 0.5;
             card.position.x = CANVAS_WIDTH / 2;
-            card.position.y = CANVAS_HEIGHT / 2 - (0.25 * i);
+            // card.position.y = CANVAS_HEIGHT / 2 - (0.25 * i);
+            card.position.y = CANVAS_HEIGHT / 2;
             card.setInteractive(true);
-            card.click = card.tap = function () {
-                deck.forEach(function (card) {
-                    card.tweenDeckToFan();
-                });
-            };
 
             card.d = new $.Deferred();
             card.number = i;
@@ -231,6 +255,7 @@
                 var pos = spread.shift();
                 var tween;
 
+                // stop if spread array is empty
                 if (pos === undefined) {
                     return;
                 }
@@ -268,21 +293,38 @@
             stage.addChild(card);
         }
 
+        // shuffle
+        deck = gsrShuffle(deck);
+        deck = gsrShuffle(deck);
+        deck = gsrShuffle(deck);
+        deck = gsrShuffle(deck);
+        deck = gsrShuffle(deck);
+        // fix z-index ordering, add click event to cards
+        deck.forEach(function (card, i) {
+            card.moveToTop();
+            card.click = card.tap = function () {
+                deck.forEach(function (card) {
+                    card.tweenDeckToFan();
+                });
+            };
+        })
+
+        // card picking
         $.when.apply(null, deferreds).done(function() {
             var cardRotationOffset = 0; // mobile only
 
             if (isMobile) {
                 simpleSwipe = new SimpleSwipe("body", function (swipe, el) {
-                    console.log(swipe.directionLast, swipe.lengthLast, cardRotationOffset);
                     if (swipe.directionLast === 'left') {
-                        cardRotationOffset -= 0.5 * (swipe.lengthLast >=5 ? 5 : swipe.lengthLast);
+                        cardRotationOffset -= 0.5 * (swipe.lengthLast >= 5 ? 5 : swipe.lengthLast);
                     } else if (swipe.directionLast === 'right') {
-                        cardRotationOffset += 0.5 * (swipe.lengthLast >=5 ? 5 : swipe.lengthLast);
+                        cardRotationOffset += 0.5 * (swipe.lengthLast >= 5 ? 5 : swipe.lengthLast);
                     }
 
                     deck.forEach(function (card) {
-                        a_deg = ((card.number + cardRotationOffset) / (deck.length - 1)) * CARD_FAN_DEGREES;
-                        endpos = getFanPosition(a_deg - 180, CARD_FAN_R, CARD_FAN_X, CARD_FAN_Y);
+                        // var a_deg = ((card.number + cardRotationOffset) / DECK_LENGTH) * CARD_FAN_DEGREES;
+                        var a_deg = ((card.ordering + cardRotationOffset) / DECK_LENGTH) * CARD_FAN_DEGREES;
+                        var endpos = getFanPosition(a_deg - 180, CARD_FAN_R, CARD_FAN_X, CARD_FAN_Y);
                         card.position.x = endpos.x;
                         card.position.y = endpos.y;
                         card.rotation = endpos.a;
