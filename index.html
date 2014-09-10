@@ -21,6 +21,7 @@
 </head>
 <body id="body">
     <script>
+        function mod(a, n) { return ((a % n) + n) % n; }
         function getFanPosition(a_deg, r, cx, cy) {
             var a = (a_deg) * Math.PI / 180;
             return {
@@ -151,6 +152,7 @@
         var CARD_FAN_X = CANVAS_WIDTH / 2;
         var CARD_FAN_Y = isMobile ? CANVAS_HEIGHT : CANVAS_HEIGHT / 2;
         var CARD_FAN_R = 300;
+        var CARD_FAN_DEGREES = isMobile ? 360 : 180;
         var SPREAD_X = isMobile ? 0 : 250;
         var SPREAD_Y = isMobile ? 10 : 300;
 
@@ -199,7 +201,7 @@
 
             card.tweenDeckToFan = function () {
                 var self = this;
-                var a_deg = (deck.indexOf(self) / (deck.length - 1)) * 180;
+                var a_deg = (deck.indexOf(self) / (deck.length - 1)) * CARD_FAN_DEGREES;
                 var endpos = getFanPosition(a_deg - 180, CARD_FAN_R, CARD_FAN_X, CARD_FAN_Y);
 
                 var tween = new TWEEN.Tween({
@@ -246,6 +248,7 @@
                     .easing(TWEEN.Easing.Cubic.InOut)
                     .onStart(function () {
                         self.click = self.tap = undefined;
+                        deck.splice(deck.indexOf(self), 1);
                     })
                     .onUpdate(function (done) {
                         if (done > 0.5 && self.faceUp === false) {
@@ -266,8 +269,6 @@
         }
 
         $.when.apply(null, deferreds).done(function() {
-            console.log('deferreds done');
-
             var cardRotationOffset = 0; // mobile only
 
             if (isMobile) {
@@ -280,7 +281,7 @@
                     }
 
                     deck.forEach(function (card) {
-                        a_deg = ((deck.indexOf(card) + cardRotationOffset) / (deck.length - 1)) * 180;
+                        a_deg = ((card.number + cardRotationOffset) / (deck.length - 1)) * CARD_FAN_DEGREES;
                         endpos = getFanPosition(a_deg - 180, CARD_FAN_R, CARD_FAN_X, CARD_FAN_Y);
                         card.position.x = endpos.x;
                         card.position.y = endpos.y;
@@ -289,7 +290,6 @@
                 });
             }
         });
-
 
         document.body.appendChild(renderer.view);
         requestAnimFrame(animate);
