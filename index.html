@@ -21,6 +21,7 @@
 </head>
 <body id="body">
     <script>
+        'use strict';
         function mod(a, n) { return ((a % n) + n) % n; }
         function getFanPosition(a_deg, r, cx, cy) {
             var a = (a_deg) * Math.PI / 180;
@@ -31,35 +32,42 @@
             };
         }
         function gsrShuffle(deck) {
-            var deckLength = deck.length;
-            var deckFirstHalfLength = 0;
             var pile1;
             var pile2;
+            var pile1Length = 0;
             var pile1ChoosingProbability;
             var i;
-            var rand;
+            var deckShuffled = [];
 
-            // Cut deck into two piles
-            for (i = 0; i <= DECK_LENGTH; i++) {
+            // Find cut
+            for (i = 0; i <= deck.length; i++) {
                 if (Math.random() <= 0.5) {
-                    deckFirstHalfLength++;
+                    pile1Length++;
                 }
             }
-            pile1 = deck.slice(0, deckFirstHalfLength);
-            pile2 = deck.slice(deckFirstHalfLength);
-            deck = [];
-
-            // "riffle shuffle"
-            for (i = 0; i <= DECK_LENGTH; i++) {
+            // Cut deck into two piles
+            pile1 = deck.slice(0, pile1Length);
+            pile2 = deck.slice(pile1Length);
+            console.log(pile1Length, pile1, pile2);
+            // "Riffle shuffle"
+            for (i = 0; i <= deck.length; i++) {
                 pile1ChoosingProbability = pile1.length / (pile1.length + pile2.length);
-                deck.push(Math.random() <= pile1ChoosingProbability ? pile1.pop() : pile2.pop());
-                deck[i].ordering = i;
+                deckShuffled.push(Math.random() <= pile1ChoosingProbability ? pile1.pop() : pile2.pop());
+                deckShuffled[i].ordering = i;
             }
 
-            return deck;
+            return deckShuffled;
         }
+        // shuffle
+        // deck = gsrShuffle(deck);
+        // deck = gsrShuffle(deck);
+        // deck = gsrShuffle(deck);
+        // deck = gsrShuffle(deck);
+        // deck = gsrShuffle(deck);
+        // gsrShuffle(deck);
 
-        var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|OperaAndroid|Opera Mini/i.test(navigator.userAgent);
+        // Change this to JavaScript widow-width checking?
+        var isMobile = /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|OperaAndroid|Opera Mini/i.test(navigator.userAgent);
 
         var spreads = {
             desktop: {
@@ -177,6 +185,8 @@
         var CANVAS_WIDTH = isMobile ? window.innerWidth : 800;
         var CANVAS_HEIGHT = isMobile ? window.innerHeight : 800;
         var DECK_LENGTH = 77; // zero indexed
+        var DECK_START_X = CANVAS_WIDTH / 2;
+        var DECK_START_Y = CANVAS_HEIGHT / 2;
         var CARD_FAN_X = CANVAS_WIDTH / 2;
         var CARD_FAN_Y = isMobile ? CANVAS_HEIGHT : CANVAS_HEIGHT / 2;
         var CARD_FAN_R = 300;
@@ -185,14 +195,15 @@
         var SPREAD_Y = isMobile ? 10 : 300;
 
         var spread = isMobile ? spreads.mobile.celtic_cross : spreads.desktop.celtic_cross;
-        var stage = new PIXI.Stage(0xff0000, true);
+        var stage = new PIXI.Stage(0xffffff, true);
         var renderer = new PIXI.WebGLRenderer(CANVAS_WIDTH, CANVAS_HEIGHT); //autoDetectRenderer(400, 300);
 
         var deck = [];
-        var deferreds = [];
+        var dfds = [];
         var card;
         var i;
         var simpleSwipe;
+        var pile2StartIndex;
 
         var textures = { ghost: PIXI.Texture.fromImage('decks/universal_waite/ghost.jpg') };
         for (i = 0; i <= DECK_LENGTH; i++) {
@@ -205,13 +216,13 @@
             card = new PIXI.Sprite(textures.ghost);
             card.anchor.x = 0.5;
             card.anchor.y = 0.5;
-            card.position.x = CANVAS_WIDTH / 2;
-            // card.position.y = CANVAS_HEIGHT / 2 - (0.25 * i);
-            card.position.y = CANVAS_HEIGHT / 2;
+            card.position.x = DECK_START_X;
+            card.position.y = DECK_START_Y;
             card.setInteractive(true);
 
             card.d = new $.Deferred();
-            card.number = i;
+            card.sleepDeferred = new $.Deferred();
+            card.number = card.ordering = i;
             card.faceUp = false;
             card.flip = function () {
                 this.faceUp = !this.faceUp;
@@ -223,11 +234,55 @@
                 parent.addChildAt(this, parent.children.length);
             };
 
+            card.tweenDeckToPile = function (deferred, pileNumber) {
+                pileNumber = pileNumber || 1;
+                var self = this;
+                var tween = new TWEEN.Tween({
+                        x: self.position.x,
+                        y: self.position.y,
+                    })
+                    .to({
+                        x: self.position.x + (pileNumber === 1 ? -100 : 100),
+                        y: self.position.y - 100,
+                    }, 500)
+                    .easing(TWEEN.Easing.Cubic.InOut)
+                    .onUpdate(function (done) {
+                        self.position.x = this.x;
+                        self.position.y = this.y;
+                    })
+                    .onComplete(function () {
+                        deferred.resolve();
+                    })
+                    .start();
+
+                return deferred;
+            };
+            card.tweenPileToDeck = function (deferred) {
+                var self = this;
+                var tween = new TWEEN.Tween({
+                        x: self.position.x,
+                        y: self.position.y,
+                    })
+                    .to({
+                        x: DECK_START_X,
+                        y: DECK_START_Y,
+                    }, 500)
+                    .easing(TWEEN.Easing.Cubic.InOut)
+                    .onUpdate(function (done) {
+                        self.position.x = this.x;
+                        self.position.y = this.y;
+                    })
+                    .onComplete(function () {
+                        deferred.resolve();
+                    })
+                    .start();
+
+                return deferred;
+            };
             card.tweenDeckToFan = function () {
                 var self = this;
                 var a_deg = (deck.indexOf(self) / (deck.length - 1)) * CARD_FAN_DEGREES;
                 var endpos = getFanPosition(a_deg - 180, CARD_FAN_R, CARD_FAN_X, CARD_FAN_Y);
-
                 var tween = new TWEEN.Tween({
                         x: self.position.x,
                         y: self.position.y,
@@ -288,41 +343,108 @@
                     .start();
             };
 
-            deferreds.push(card.d);
+            dfds.push(card.d);
             deck.push(card);
             stage.addChild(card);
         }
 
-        // shuffle
-        deck = gsrShuffle(deck);
-        deck = gsrShuffle(deck);
-        deck = gsrShuffle(deck);
-        deck = gsrShuffle(deck);
-        deck = gsrShuffle(deck);
         // fix z-index ordering, add click event to cards
-        deck.forEach(function (card, i) {
+        deck.forEach(function (card) {
+            // fix z-index ordering
             card.moveToTop();
-            card.click = card.tap = function () {
-                deck.forEach(function (card) {
-                    card.tweenDeckToFan();
-                });
+        });
+
+        function gsrCut(deck) {
+            var pile1;
+            var pile2StartIndex = 0;
+            var i;
+
+            // Cut deck into two piles
+            for (i = 0; i <= deck.length; i++) {
+                if (Math.random() <= 0.5) {
+                    pile2StartIndex++;
+                }
+            }
+            return pile2StartIndex;
+        }
+        function getShuffledDeck(deck, pile2StartIndex) {
+            var pile1;
+            var pile2;
+            var pile1ChoosingProbability;
+            var i;
+            var deckShuffled = [];
+
+            // Cut deck into two piles
+            pile1 = deck.slice(0, pile2StartIndex);
+            pile2 = deck.slice(pile2StartIndex);
+            // "Riffle shuffle"
+            for (i = 0; i < deck.length; i++) {
+                pile1ChoosingProbability = pile1.length / (pile1.length + pile2.length);
+                deckShuffled.push(Math.random() <= pile1ChoosingProbability ? pile1.pop() : pile2.pop());
+                // console.log(deckShuffled);
+                deckShuffled[i].ordering = i;
+            }
+
+            return deckShuffled;
+        }
+
+
+        
+
+        function shuffle() {
+            function getNewDeferredsArray(length) {
+                var dfds = [];
+                var i;
+                for (i = 0; i < length; i++) {
+                    dfds.push(new $.Deferred());
+                }
+                return dfds;
+            }
+
+            pile2StartIndex = gsrCut(deck);
+            var deferreds = {
+                piles: getNewDeferredsArray(DECK_LENGTH + 1),
+                deck: getNewDeferredsArray(DECK_LENGTH + 1),
             };
-        })
+
+            deck.forEach(function (card, i) {
+                if (i < pile2StartIndex) {
+                    deferreds.piles[i] = card.tweenDeckToPile(deferreds.piles[i], 1);
+                } else {
+                    deferreds.piles[i] = card.tweenDeckToPile(deferreds.piles[i], 2);
+                }
+            })
+            $.when.apply(null, deferreds.piles).done(function () {
+                deck = getShuffledDeck(deck, pile2StartIndex);
+                deck.forEach(function (card, i) {
+                    var index = deck.length - 1 - i;
+                    deferreds.deck[index] = card.tweenPileToDeck(deferreds.deck[index]);
+                    card.moveToTop();
+                });
+                $.when.apply(null, deferreds.deck).done(function () {
+                    parent.parent.shuffle();
+                });
+                
+            });
+
+        }
+
+        shuffle();
+        
 
         // card picking
-        $.when.apply(null, deferreds).done(function() {
+        $.when.apply(null, dfds).done(function() {
             var cardRotationOffset = 0; // mobile only
 
             if (isMobile) {
                 simpleSwipe = new SimpleSwipe("body", function (swipe, el) {
                     if (swipe.directionLast === 'left') {
-                        cardRotationOffset -= 0.5 * (swipe.lengthLast >= 5 ? 5 : swipe.lengthLast);
+                        cardRotationOffset -= 0.5 * (swipe.lengthLast > 5 ? 5 : swipe.lengthLast);
                     } else if (swipe.directionLast === 'right') {
-                        cardRotationOffset += 0.5 * (swipe.lengthLast >= 5 ? 5 : swipe.lengthLast);
+                        cardRotationOffset += 0.5 * (swipe.lengthLast > 5 ? 5 : swipe.lengthLast);
                     }
 
                     deck.forEach(function (card) {
-                        // var a_deg = ((card.number + cardRotationOffset) / DECK_LENGTH) * CARD_FAN_DEGREES;
                         var a_deg = ((card.ordering + cardRotationOffset) / DECK_LENGTH) * CARD_FAN_DEGREES;
                         var endpos = getFanPosition(a_deg - 180, CARD_FAN_R, CARD_FAN_X, CARD_FAN_Y);
                         card.position.x = endpos.x;
