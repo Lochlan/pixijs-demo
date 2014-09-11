@@ -221,7 +221,6 @@
             card.setInteractive(true);
 
             card.d = new $.Deferred();
-            card.sleepDeferred = new $.Deferred();
             card.number = card.ordering = i;
             card.faceUp = false;
             card.flip = function () {
@@ -234,6 +233,11 @@
                 parent.addChildAt(this, parent.children.length);
             };
 
+            card.sleep = function (timeout) {
+                var d = new $.Deferred();
+                setTimeout(d.resolve, timeout);
+                return d.promise();
+            };
             card.tweenDeckToPile = function (deferred, pileNumber) {
                 pileNumber = pileNumber || 1;
                 var self = this;
@@ -242,8 +246,8 @@
                         y: self.position.y,
                     })
                     .to({
-                        x: self.position.x + (pileNumber === 1 ? -100 : 100),
-                        y: self.position.y - 100,
+                        x: self.position.x + (pileNumber === 1 ? -75 : 75),
+                        y: self.position.y - 50,
                     }, 500)
                     .easing(TWEEN.Easing.Cubic.InOut)
                     .onUpdate(function (done) {
@@ -255,29 +259,35 @@
                     })
                     .start();
 
-                return deferred;
+                return deferred.promise();
             };
             card.tweenPileToDeck = function (deferred) {
                 var self = this;
-                var tween = new TWEEN.Tween({
-                        x: self.position.x,
-                        y: self.position.y,
-                    })
-                    .to({
-                        x: DECK_START_X,
-                        y: DECK_START_Y,
-                    }, 500)
-                    .easing(TWEEN.Easing.Cubic.InOut)
-                    .onUpdate(function (done) {
-                        self.position.x = this.x;
-                        self.position.y = this.y;
-                    })
-                    .onComplete(function () {
-                        deferred.resolve();
-                    })
-                    .start();
+                $.when(this.sleep(25 * this.ordering)).then(function () {
 
-                return deferred;
+                    var tween = new TWEEN.Tween({
+                            x: self.position.x,
+                            y: self.position.y,
+                        })
+                        .to({
+                            x: DECK_START_X,
+                            y: DECK_START_Y,
+                        }, 500)
+                        .easing(TWEEN.Easing.Cubic.In)
+                        .onUpdate(function (done) {
+                            self.position.x = this.x;
+                            self.position.y = this.y;
+                        })
+                        .onComplete(function () {
+                            deferred.resolve();
+                        })
+                        .start();
+
+
+                }.bind(this));
+                
+
+                return deferred.promise();
             };
             card.tweenDeckToFan = function () {
                 var self = this;
@@ -387,9 +397,6 @@
 
             return deckShuffled;
         }
-
-
-        
 
         function shuffle() {
             function getNewDeferredsArray(length) {
