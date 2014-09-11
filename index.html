@@ -162,7 +162,7 @@
 
         var spread = isMobile ? spreads.mobile.celtic_cross : spreads.desktop.celtic_cross;
         var stage = new PIXI.Stage(0xffffff, true);
-        var renderer = new PIXI.CanvasRenderer(CANVAS_WIDTH, CANVAS_HEIGHT); //autoDetectRenderer(400, 300);
+        var renderer = new PIXI.autoDetectRenderer(CANVAS_WIDTH, CANVAS_HEIGHT);
 
         var deck = [];
         var dfds = [];
@@ -235,7 +235,6 @@
             card.tweenPileToDeck = function () {
                 var deferred = new $.Deferred();
                 var self = this;
-                console.log(this);
                 $.when(this.sleep(15 * this.ordering)).then(function () {
                     var tween = new TWEEN.Tween({
                             x: self.position.x,
@@ -363,7 +362,6 @@
             for (i = 0; i < deck.length; i++) {
                 pile1ChoosingProbability = pile1.length / (pile1.length + pile2.length);
                 deckShuffled.push(Math.random() <= pile1ChoosingProbability ? pile1.pop() : pile2.pop());
-                // console.log(deckShuffled);
                 deckShuffled[i].ordering = i;
             }
 
