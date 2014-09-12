@@ -176,49 +176,76 @@
             textures[i] = PIXI.Texture.fromImage('decks/universal_waite/' + i + '.jpg');
         }
 
-        // set up cards
-        for (i = 0; i <= DECK_LENGTH; i++) {
-            // Cards begin life face down in the middle of the canvas
-            card = new PIXI.Sprite(textures.ghost);
-            card.anchor.x = 0.5;
-            card.anchor.y = 0.5;
-            card.position.x = DECK_START_X;
-            card.position.y = DECK_START_Y;
-            card.setInteractive(true);
 
-            card.d = new $.Deferred();
-            card.number = card.ordering = i;
-            card.faceUp = false;
-            card.flip = function () {
-                this.faceUp = !this.faceUp;
-                this.setTexture(this.faceUp ? textures[this.number] : textures.ghost);
-            };
-            card.moveToTop = function () {
-                var parent = this.parent;
-                parent.removeChild(this);
-                parent.addChildAt(this, parent.children.length);
-            };
+        function Card(texture) {
+            PIXI.Sprite.call(this, texture); // call super constructor.
+            this.anchor.x = 0.5;
+            this.anchor.y = 0.5;
+            this.position.x = DECK_START_X;
+            this.position.y = DECK_START_Y;
+        }
+        Card.prototype = Object.create(PIXI.Sprite.prototype);
+        Card.prototype.constructor = Card;
+        Card.prototype.faceUp = false;
+        Card.prototype.flip = function () {
+            this.faceUp = !this.faceUp;
+            this.setTexture(this.faceUp ? textures[this.number] : textures.ghost);
+        };
+        Card.prototype.moveToTop = function () {
+            var parent = this.parent;
+            parent.removeChild(this);
+            parent.addChildAt(this, parent.children.length);
+        };
+        Card.prototype.sleep = function (timeout) {
+            var d = new $.Deferred();
+            setTimeout(d.resolve, timeout);
+            return d.promise();
+        };
+        Card.prototype.tweenDeckToPile = function (pileNumber) {
+            pileNumber = pileNumber || 1;
+            var self = this;
+            var deferred = new $.Deferred();
 
-            card.sleep = function (timeout) {
-                var d = new $.Deferred();
-                setTimeout(d.resolve, timeout);
-                return d.promise();
-            };
-            card.tweenDeckToPile = function (pileNumber) {
-                pileNumber = pileNumber || 1;
-                var deferred = new $.Deferred();
-                var self = this;
+            var tween = new TWEEN.Tween({
+                    x: self.position.x,
+                    y: self.position.y,
+                    scale: self.scale.x,
+                })
+                .to({
+                    x: self.position.x + (pileNumber === 1 ? -100 : 100),
+                    y: self.position.y - 15,
+                    scale: 1.5,
+                }, 500)
+                .easing(TWEEN.Easing.Cubic.InOut)
+                .onUpdate(function (done) {
+                    self.position.x = this.x;
+                    self.position.y = this.y;
+                    self.scale.x = this.scale;
+                    self.scale.y = this.scale;
+                })
+                .onComplete(function () {
+                    deferred.resolve();
+                })
+                .start();
+
+            return deferred.promise();
+        };
+        Card.prototype.tweenPileToDeck = function () {
+            var self = this;
+            var deferred = new $.Deferred();
+
+            $.when(this.sleep(15 * this.ordering)).then(function () {
                 var tween = new TWEEN.Tween({
                         x: self.position.x,
                         y: self.position.y,
                         scale: self.scale.x,
                     })
                     .to({
-                        x: self.position.x + (pileNumber === 1 ? -100 : 100),
-                        y: self.position.y - 15,
-                        scale: 1.5,
+                        x: DECK_START_X,
+                        y: DECK_START_Y,
+                        scale: 1,
                     }, 500)
-                    .easing(TWEEN.Easing.Cubic.InOut)
+                    .easing(TWEEN.Easing.Cubic.Out)
                     .onUpdate(function (done) {
                         self.position.x = this.x;
                         self.position.y = this.y;
@@ -229,118 +256,80 @@
                         deferred.resolve();
                     })
                     .start();
+            });
 
-                return deferred.promise();
-            };
-            card.tweenPileToDeck = function () {
-                var deferred = new $.Deferred();
-                var self = this;
-                $.when(this.sleep(15 * this.ordering)).then(function () {
-                    var tween = new TWEEN.Tween({
-                            x: self.position.x,
-                            y: self.position.y,
-                            scale: self.scale.x,
-                        })
-                        .to({
-                            x: DECK_START_X,
-                            y: DECK_START_Y,
-                            scale: 1,
-                        }, 500)
-                        .easing(TWEEN.Easing.Cubic.Out)
-                        .onUpdate(function (done) {
-                            self.position.x = this.x;
-                            self.position.y = this.y;
-                            self.scale.x = this.scale;
-                            self.scale.y = this.scale;
-                        })
-                        .onComplete(function () {
-                            deferred.resolve();
-                        })
-                        .start();
-                });
+            return deferred.promise();
+        };
+        Card.prototype.tweenDeckToFan = function () {
+            var self = this;
+            var a_deg = (deck.indexOf(self) / (deck.length - 1)) * CARD_FAN_DEGREES;
+            var positionInFan = getFanPosition(a_deg - 180, CARD_FAN_R, CARD_FAN_X, CARD_FAN_Y);
 
-                return deferred.promise();
-            };
-            card.tweenDeckToFan = function () {
-                var self = this;
-                var a_deg = (deck.indexOf(self) / (deck.length - 1)) * CARD_FAN_DEGREES;
-                var endpos = getFanPosition(a_deg - 180, CARD_FAN_R, CARD_FAN_X, CARD_FAN_Y);
-                var tween = new TWEEN.Tween({
-                        x: self.position.x,
-                        y: self.position.y,
-                        a: self.rotation,
-                    })
-                    .to({
-                        x: endpos.x,
-                        y: endpos.y,
-                        a: endpos.a,
-                    }, 500)
-                    .easing(TWEEN.Easing.Cubic.InOut)
-                    .onUpdate(function (done) {
-                        self.position.x = this.x;
-                        self.position.y = this.y;
-                        self.rotation = this.a;
-                    })
-                    .onComplete(function () {
-                        self.click = self.tap = self.tweenFanToSpread;
-                        self.d.resolve();
-                    })
-                    .start();
-            };
-            card.tweenFanToSpread = function () {
-                var self = this;
-                var pos = spread.shift();
-                var tween;
+            var tween = new TWEEN.Tween({
+                    x: self.position.x,
+                    y: self.position.y,
+                    a: self.rotation,
+                })
+                .to({
+                    x: positionInFan.x,
+                    y: positionInFan.y,
+                    a: positionInFan.a,
+                }, 500)
+                .easing(TWEEN.Easing.Cubic.InOut)
+                .onUpdate(function (done) {
+                    self.position.x = this.x;
+                    self.position.y = this.y;
+                    self.rotation = this.a;
+                })
+                .onComplete(function () {
+                    self.click = self.tap = self.tweenFanToSpread;
+                    self.d.resolve();
+                })
+                .start();
+        };
+        Card.prototype.tweenFanToSpread = function () {
+            var self = this;
+            var positionSpread = spread.shift();
+            var tween;
 
-                // stop if spread array is empty
-                if (pos === undefined) {
-                    return;
-                }
+            // stop if spread array is empty
+            if (positionInSpread === undefined) {
+                return;
+            }
 
-                tween = new TWEEN.Tween({
-                        x: self.position.x,
-                        y: self.position.y,
-                        a: self.rotation,
-                    })
-                    .to({
-                        x: pos.x + SPREAD_X,
-                        y: pos.y + SPREAD_Y,
-                        a: pos.a,
-                    }, 500)
-                    .easing(TWEEN.Easing.Cubic.InOut)
-                    .onStart(function () {
-                        self.click = self.tap = undefined;
-                        deck.splice(deck.indexOf(self), 1);
-                    })
-                    .onUpdate(function (done) {
-                        if (done > 0.5 && self.faceUp === false) {
-                            self.moveToTop();
-                        }
-                        self.position.x = this.x;
-                        self.position.y = this.y;
-                        self.rotation = this.a;
-                    }).onComplete(function () {
-                        self.flip();
-                    })
-                    .start();
-            };
+            tween = new TWEEN.Tween({
+                    x: self.position.x,
+                    y: self.position.y,
+                    a: self.rotation,
+                })
+                .to({
+                    x: positionInSpread.x + SPREAD_X,
+                    y: positionInSpread.y + SPREAD_Y,
+                    a: positionInSpread.a,
+                }, 500)
+                .easing(TWEEN.Easing.Cubic.InOut)
+                .onStart(function () {
+                    self.click = self.tap = undefined;
+                    deck.splice(deck.indexOf(self), 1);
+                })
+                .onUpdate(function (done) {
+                    if (done > 0.5 && self.faceUp === false) {
+                        self.moveToTop();
+                    }
+                    self.position.x = this.x;
+                    self.position.y = this.y;
+                    self.rotation = this.a;
+                }).onComplete(function () {
+                    self.flip();
+                })
+                .start();
+        };
 
-            dfds.push(card.d);
-            deck.push(card);
-            stage.addChild(card);
-        }
 
-        // fix z-index ordering
-        deck.forEach(function (card) {
-            card.moveToTop();
-        });
-
-        function gsrCut(deck) {
-            var pile1;
+        function getDeckCutIndex(deck) {
             var pile2StartIndex = 0;
             var i;
 
-            // Cut deck into two piles
             for (i = 0; i <= deck.length; i++) {
                 if (Math.random() <= 0.5) {
                     pile2StartIndex++;
@@ -367,31 +356,46 @@
 
             return deckShuffled;
         }
-
         function shuffle() {
-            var ds = [];
+            var cutDeferreds = [];
 
-            pile2StartIndex = gsrCut(deck);
-
+            pile2StartIndex = getDeckCutIndex(deck);
             deck.forEach(function (card, i) {
                 if (i < pile2StartIndex) {
-                    ds.push(card.tweenDeckToPile(1));
+                    cutDeferreds.push(card.tweenDeckToPile(1));
                 } else {
-                    ds.push(card.tweenDeckToPile(2));
+                    cutDeferreds.push(card.tweenDeckToPile(2));
                 }
-            })
-            $.when.apply(null, ds).done(function () {
-                var deferreds = [];
+            });
+
+            $.when.apply(null, cutDeferreds).done(function () {
+                var shuffleDeferreds = [];
                 deck = getShuffledDeck(deck, pile2StartIndex);
+
                 deck.forEach(function (card, i) {
                     var index = deck.length - 1 - i;
-                    deferreds.push(card.tweenPileToDeck());
+                    shuffleDeferreds.push(card.tweenPileToDeck());
                     card.moveToTop();
                 });
-                $.when.apply(null, deferreds).done(function () {
+
+                $.when.apply(null, shuffleDeferreds).done(function () {
                     parent.parent.shuffle();
                 });
             });
+        }
+
+
+
+        // set up cards
+        for (i = 0; i <= DECK_LENGTH; i++) {
+            card = new Card(textures.ghost); // face down
+            card.setInteractive(true);
+            card.d = new $.Deferred();
+            card.number = card.ordering = i;
+
+            dfds.push(card.d);
+            deck.push(card);
+            stage.addChild(card);
         }
 
         shuffle();
