@@ -21,7 +21,7 @@
 <body id="body">
     <script>
         'use strict';
-        function mod(a, n) { return ((a % n) + n) % n; }
+
         function getFanPosition(a_deg, r, cx, cy) {
             var a = (a_deg) * Math.PI / 180;
             return {
@@ -288,7 +288,7 @@
         };
         Card.prototype.tweenFanToSpread = function () {
             var self = this;
-            var positionSpread = spread.shift();
+            var positionInSpread = spread.shift();
             var tween;
 
             // stop if spread array is empty
@@ -392,12 +392,18 @@
             card.d = new $.Deferred();
             card.number = card.ordering = i;
 
+            card.click = card.tap = function () {
+                deck.forEach(function (card) {
+                    card.tweenDeckToFan();
+                });
+            };
+
             dfds.push(card.d);
             deck.push(card);
             stage.addChild(card);
         }
 
-        shuffle();
+        // shuffle();
 
         // card picking
         $.when.apply(null, dfds).done(function() {
