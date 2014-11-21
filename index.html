@@ -15,7 +15,6 @@
     <script src="https://code.jquery.com/jquery-2.1.1.js"></script>
     <script src="pixi.js"></script>
     <script src="tween.js"></script>
-    <script src="simple-swipe.js"></script>
 
 </head>
 <body id="body">
@@ -30,9 +29,6 @@
                 y: cy + r * Math.sin(a),
             };
         }
-
-        // Change this to JavaScript widow-width checking?
-        var isMobile = /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|OperaAndroid|Opera Mini/i.test(navigator.userAgent);
 
         var spreads = {
             desktop: {
@@ -88,78 +84,23 @@
                         y: 0,
                         a: 0,
                     },
-                ]
+                ],
             },
-            mobile : {
-                // size: 320 x 480 max
-                celtic_cross: [
-                    {
-                        x: 160,
-                        y: 170,
-                        a: 0,
-                    },
-                    {
-                        x: 160,
-                        y: 170,
-                        a: Math.PI / 2,
-                    },
-                    {
-                        x: 160,
-                        y: 290,
-                        a: 0,
-                    },
-                    {
-                        x: 65,
-                        y: 170,
-                        a: 0,
-                    },
-                    {
-                        x: 160,
-                        y: 50,
-                        a: 0,
-                    },
-                    {
-                        x: 255,
-                        y: 170,
-                        a: 0,
-                    },
-                    {
-                        x: 43,
-                        y: 410,
-                        a: 0,
-                    },
-                    {
-                        x: 121,
-                        y: 410,
-                        a: 0,
-                    },
-                    {
-                        x: 199,
-                        y: 410,
-                        a: 0,
-                    },
-                    {
-                        x: 277,
-                        y: 410,
-                        a: 0,
-                    },
-                ]
-            }
-        }
+        };
 
-        var CANVAS_WIDTH = isMobile ? window.innerWidth : 800;
-        var CANVAS_HEIGHT = isMobile ? window.innerHeight : 800;
+        var CANVAS_WIDTH = 800;
+        var CANVAS_HEIGHT = 800;
         var DECK_LENGTH = 77; // zero indexed
         var DECK_START_X = CANVAS_WIDTH / 2;
         var DECK_START_Y = CANVAS_HEIGHT / 2;
         var CARD_FAN_X = CANVAS_WIDTH / 2;
-        var CARD_FAN_Y = isMobile ? CANVAS_HEIGHT : CANVAS_HEIGHT / 2;
+        var CARD_FAN_Y = CANVAS_HEIGHT / 2;
         var CARD_FAN_R = 300;
-        var CARD_FAN_DEGREES = isMobile ? 360 : 180;
-        var SPREAD_X = isMobile ? 0 : 250;
-        var SPREAD_Y = isMobile ? 10 : 300;
+        var CARD_FAN_DEGREES = 180;
+        var SPREAD_X = 250;
+        var SPREAD_Y = 300;
 
-        var spread = isMobile ? spreads.mobile.celtic_cross : spreads.desktop.celtic_cross;
+        var spread = spreads.desktop.celtic_cross;
         var stage = new PIXI.Stage(0xffffff, true);
         var renderer = new PIXI.autoDetectRenderer(CANVAS_WIDTH, CANVAS_HEIGHT);
 
@@ -408,24 +349,6 @@
         // card picking
         $.when.apply(null, dfds).done(function() {
             var cardRotationOffset = 0; // mobile only
-
-            if (isMobile) {
-                simpleSwipe = new SimpleSwipe("body", function (swipe, el) {
-                    if (swipe.directionLast === 'left') {
-                        cardRotationOffset -= 0.5 * (swipe.lengthLast > 5 ? 5 : swipe.lengthLast);
-                    } else if (swipe.directionLast === 'right') {
-                        cardRotationOffset += 0.5 * (swipe.lengthLast > 5 ? 5 : swipe.lengthLast);
-                    }
-
-                    deck.forEach(function (card) {
-                        var a_deg = ((card.ordering + cardRotationOffset) / DECK_LENGTH) * CARD_FAN_DEGREES;
-                        var endpos = getFanPosition(a_deg - 180, CARD_FAN_R, CARD_FAN_X, CARD_FAN_Y);
-                        card.position.x = endpos.x;
-                        card.position.y = endpos.y;
-                        card.rotation = endpos.a;
-                    });
-                });
-            }
         });
 
         document.body.appendChild(renderer.view);
