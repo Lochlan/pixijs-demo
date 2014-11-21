@@ -3,7 +3,6 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, user-scalable=no">
     <title>pixi.js tarot card demo</title>
     <style>
         body {
@@ -126,80 +125,7 @@
         }
         Card.prototype = Object.create(PIXI.Sprite.prototype);
         Card.prototype.constructor = Card;
-        Card.prototype.faceUp = false;
-        Card.prototype.flip = function () {
-            this.faceUp = !this.faceUp;
-            this.setTexture(this.faceUp ? textures[this.number] : textures.ghost);
-        };
-        Card.prototype.moveToTop = function () {
-            var parent = this.parent;
-            parent.removeChild(this);
-            parent.addChildAt(this, parent.children.length);
-        };
-        Card.prototype.sleep = function (timeout) {
-            var d = new $.Deferred();
-            setTimeout(d.resolve, timeout);
-            return d.promise();
-        };
-        Card.prototype.tweenDeckToPile = function (pileNumber) {
-            pileNumber = pileNumber || 1;
-            var self = this;
-            var deferred = new $.Deferred();
 
-            var tween = new TWEEN.Tween({
-                    x: self.position.x,
-                    y: self.position.y,
-                    scale: self.scale.x,
-                })
-                .to({
-                    x: self.position.x + (pileNumber === 1 ? -100 : 100),
-                    y: self.position.y - 15,
-                    scale: 1.5,
-                }, 500)
-                .easing(TWEEN.Easing.Cubic.InOut)
-                .onUpdate(function (done) {
-                    self.position.x = this.x;
-                    self.position.y = this.y;
-                    self.scale.x = this.scale;
-                    self.scale.y = this.scale;
-                })
-                .onComplete(function () {
-                    deferred.resolve();
-                })
-                .start();
-
-            return deferred.promise();
-        };
-        Card.prototype.tweenPileToDeck = function () {
-            var self = this;
-            var deferred = new $.Deferred();
-
-            $.when(this.sleep(15 * this.ordering)).then(function () {
-                var tween = new TWEEN.Tween({
-                        x: self.position.x,
-                        y: self.position.y,
-                        scale: self.scale.x,
-                    })
-                    .to({
-                        x: DECK_START_X,
-                        y: DECK_START_Y,
-                        scale: 1,
-                    }, 500)
-                    .easing(TWEEN.Easing.Cubic.Out)
-                    .onUpdate(function (done) {
-                        self.position.x = this.x;
-                        self.position.y = this.y;
-                        self.scale.x = this.scale;
-                        self.scale.y = this.scale;
-                    })
-                    .onComplete(function () {
-                        deferred.resolve();
-                    })
-                    .start();
-            });
-
-            return deferred.promise();
-        };
         Card.prototype.tweenDeckToFan = function () {
             var self = this;
             var a_deg = (deck.indexOf(self) / (deck.length - 1)) * CARD_FAN_DEGREES;
@@ -222,109 +148,11 @@
                     self.rotation = this.a;
                 })
                 .onComplete(function () {
-                    self.click = self.tap = self.tweenFanToSpread;
+                    self.click = self.tap = null;
                     self.d.resolve();
                 })
                 .start();
         };
-        Card.prototype.tweenFanToSpread = function () {
-            var self = this;
-            var positionInSpread = spread.shift();
-            var tween;
-
-            // stop if spread array is empty
-            if (positionInSpread === undefined) {
-                return;
-            }
-
-            tween = new TWEEN.Tween({
-                    x: self.position.x,
-                    y: self.position.y,
-                    a: self.rotation,
-                })
-                .to({
-                    x: positionInSpread.x + SPREAD_X,
-                    y: positionInSpread.y + SPREAD_Y,
-                    a: positionInSpread.a,
-                }, 500)
-                .easing(TWEEN.Easing.Cubic.InOut)
-                .onStart(function () {
-                    self.click = self.tap = undefined;
-                    deck.splice(deck.indexOf(self), 1);
-                })
-                .onUpdate(function (done) {
-                    if (done > 0.5 && self.faceUp === false) {
-                        self.moveToTop();
-                    }
-                    self.position.x = this.x;
-                    self.position.y = this.y;
-                    self.rotation = this.a;
-                }).onComplete(function () {
-                    self.flip();
-                })
-                .start();
-        };
-
-
-        function getDeckCutIndex(deck) {
-            var pile2StartIndex = 0;
-            var i;
-
-            for (i = 0; i <= deck.length; i++) {
-                if (Math.random() <= 0.5) {
-                    pile2StartIndex++;
-                }
-            }
-            return pile2StartIndex;
-        }
-        function getShuffledDeck(deck, pile2StartIndex) {
-            var pile1;
-            var pile2;
-            var pile1ChoosingProbability;
-            var i;
-            var deckShuffled = [];
-
-            // Cut deck into two piles
-            pile1 = deck.slice(0, pile2StartIndex);
-            pile2 = deck.slice(pile2StartIndex);
-            // "Riffle shuffle"
-            for (i = 0; i < deck.length; i++) {
-                pile1ChoosingProbability = pile1.length / (pile1.length + pile2.length);
-                deckShuffled.push(Math.random() <= pile1ChoosingProbability ? pile1.pop() : pile2.pop());
-                deckShuffled[i].ordering = i;
-            }
-
-            return deckShuffled;
-        }
-        function shuffle() {
-            var cutDeferreds = [];
-
-            pile2StartIndex = getDeckCutIndex(deck);
-            deck.forEach(function (card, i) {
-                if (i < pile2StartIndex) {
-                    cutDeferreds.push(card.tweenDeckToPile(1));
-                } else {
-                    cutDeferreds.push(card.tweenDeckToPile(2));
-                }
-            });
-
-            $.when.apply(null, cutDeferreds).done(function () {
-                var shuffleDeferreds = [];
-                deck = getShuffledDeck(deck, pile2StartIndex);
-
-                deck.forEach(function (card, i) {
-                    var index = deck.length - 1 - i;
-                    shuffleDeferreds.push(card.tweenPileToDeck());
-                    card.moveToTop();
-                });
-
-                $.when.apply(null, shuffleDeferreds).done(function () {
-                    parent.parent.shuffle();
-                });
-            });
-        }
-
-
 
         // set up cards
         for (i = 0; i <= DECK_LENGTH; i++) {
@@ -344,12 +172,7 @@
             stage.addChild(card);
         }
 
-        // shuffle();
 
-        // card picking
-        $.when.apply(null, dfds).done(function() {
-            var cardRotationOffset = 0; // mobile only
-        });
 
         document.body.appendChild(renderer.view);
         requestAnimFrame(animate);
