@@ -388,7 +388,7 @@
         // set up cards
         for (i = 0; i <= DECK_LENGTH; i++) {
             card = new Card(textures.ghost); // face down
-            card.setInteractive(true);
+            card.interactive = true;
             card.d = new $.Deferred();
             card.number = card.ordering = i;
 
